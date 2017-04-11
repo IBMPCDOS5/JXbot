@@ -1,8 +1,10 @@
 ﻿using Discord;
 using Discord.Commands;
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 
 namespace JXKbot
@@ -16,7 +18,7 @@ namespace JXKbot
 
         public static String GetTimestamp(DateTime value)
         {
-            return value.ToString("yyyy/MM/dd/HH/mm/ss/ffff ");
+            return value.ToString("yyyy/MM/dd/HH:mm:ss:ffff ");
         }
 
         public string serverName;
@@ -39,6 +41,25 @@ namespace JXKbot
             cmds = client.GetService<CommandService>();
 
             serverName = client.SessionId;
+
+            cmds.CreateCommand("reboot").AddCheck((cm, u, ch) => u.ServerPermissions.ManageRoles)
+            .Do(async(e) =>
+            {
+                var reboot = Assembly.GetExecutingAssembly().Location;
+                System.Diagnostics.Process.Start(reboot);
+                await e.Channel.SendMessage("Bot is restarting..");
+                await Task.Delay(500);
+                Environment.Exit(0);
+            });
+
+            cmds.CreateCommand("help")
+            .Do(async (e) =>
+            {
+                StreamReader write = new StreamReader("commands.txt");
+                String line = write.ReadToEnd();
+                await e.Channel.SendMessage(line);
+                write.Close();
+            });
 
             cmds.CreateCommand("kick").AddCheck((cm, u, ch) => u.ServerPermissions.ManageRoles)
            .Parameter("user", Discord.Commands.ParameterType.Required)
@@ -70,10 +91,27 @@ namespace JXKbot
                var userToKick = e.Channel.Users.Where(input => input.Name.ToUpper() == user).FirstOrDefault();
                var ID = userToKick.Id;
                await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + ID + "> has been ***WARNED*** Reason: ");
-               StreamWriter write = new StreamWriter("warnings-" + serverName + ".txt");
+               await userToKick.SendMessage("You have been warned in JXKGS. Reason: ");
+               StreamWriter write = new StreamWriter("warnings-" + serverName + ".txt", true);
                write.WriteLine(timeStamp + userToKick + " was warned. Reason: ");
                write.Close();
            });
+
+            cmds.CreateCommand("mute").AddCheck((cm, u, ch) => u.ServerPermissions.ManageRoles)
+            .Parameter("user", Discord.Commands.ParameterType.Required)
+            .Do(async (e) =>
+            {
+                var user = e.Args[0].ToUpper();
+                var userToKick = e.Channel.Users.Where(input => input.Name.ToUpper() == user).FirstOrDefault();
+                var ID = userToKick.Id;
+                Role[] roles = (Role[])e.Server.Roles;
+                await e.User.AddRoles(roles[0]);
+                await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + ID + "> has been ***MUTED*** Reason: ");
+                await userToKick.SendMessage("You have been muted in JXKGS. Reason: ");
+                StreamWriter write = new StreamWriter("warnings-" + serverName + ".txt", true);
+                write.WriteLine(timeStamp + userToKick + " was muted. Reason: ");
+                write.Close();
+            });
 
             cmds.CreateCommand("ping").Do(async (e) =>
             {
@@ -82,7 +120,7 @@ namespace JXKbot
 
             cmds.CreateCommand("status").Do(async (e) =>
             {
-                await e.Channel.SendMessage(":fireemblem: Bot is functioning properly!");
+                await e.Channel.SendMessage("<:fireemblem:301087475508707328> Bot is " + e.User.Status);
             });
 
             cmds.CreateCommand("kill").AddCheck((cm, u, ch) => u.ServerPermissions.ManageRoles)
@@ -93,7 +131,8 @@ namespace JXKbot
                Environment.Exit(0);
             });
 
-            cmds.CreateCommand("announce").Parameter("channel", ParameterType.Multiple).Do(async (e) =>
+            cmds.CreateCommand("announce").AddCheck((cm, u, ch) => u.ServerPermissions.ManageRoles)
+            .Parameter("channel", ParameterType.Multiple).Do(async (e) =>
             {
                 await DoAnnouncement(e);
             });

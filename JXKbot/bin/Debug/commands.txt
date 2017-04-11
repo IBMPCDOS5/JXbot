@@ -1,0 +1,10 @@
+?help: Shows commands
+?kick: <user> Kicks user *Staff only*
+?ban <user> Bans user *Staff only*
+?warn <user> <reason> Warns user *Staff only*
+?ping Play ping-pong
+?status View status of the bot
+?kill Terminate the bot *Staff only*
+?announce <channel> <message> Make announcements *Staff only*
+?purge <number> Purges messages *Staff only*
+?reboot Reboots the bot *Staff only*
