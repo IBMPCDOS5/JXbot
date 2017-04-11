@@ -1,7 +1,6 @@
 ﻿using Discord;
 using Discord.Commands;
 using System;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -13,15 +12,19 @@ namespace JXKbot
     {
         DiscordClient client;
         CommandService cmds;
-        fileStream FS;
-        String timeStamp = GetTimestamp(DateTime.Now);
+        String timeStamp = DateTime.Now.ToString();
 
-        public static String GetTimestamp(DateTime value)
-        {
-            return value.ToString("yyyy/MM/dd/HH:mm:ss:ffff ");
+        public string serverName = "";
+
+        public void FS(string userToKick, string reason) {
+            while (timeStamp != DateTime.Now.ToString())
+            {
+                timeStamp = DateTime.Now.ToString();
+            }
+            StreamWriter write = new StreamWriter("warnings-" + serverName + ".txt", true);
+            write.WriteLine(timeStamp + " " + userToKick + " was warned. Reason: " + reason);
+            write.Close();
         }
-
-        public string serverName;
 
         public JXbot() {
 
@@ -84,18 +87,49 @@ namespace JXKbot
            });
 
             cmds.CreateCommand("warn").AddCheck((cm, u, ch) => u.ServerPermissions.ManageRoles)
-           .Parameter("user", Discord.Commands.ParameterType.Required)
+           .Parameter("user", ParameterType.Multiple)
+           .Do(async (e) =>
+           {
+               var user = e.Args[0].ToUpper();
+               var reason = "";
+               for (int i = 1; i < e.Args.Length; i++)
+               {
+                   reason += e.Args[i].ToString() + " ";
+               }
+               var userToKick = e.Channel.Users.Where(input => input.Name.ToUpper() == user).FirstOrDefault();
+               var ID = userToKick.Id;
+               await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + ID + "> has been ***WARNED*** Reason: " + reason);
+               await userToKick.SendMessage("You have been warned in JXKGS. Reason: " + reason);
+;              FS(userToKick.ToString(), reason);
+           });
+
+            cmds.CreateCommand("clearwarn").AddCheck((cm, u, ch) => u.ServerPermissions.ManageRoles)
+           .Parameter("user", ParameterType.Multiple)
            .Do(async (e) =>
            {
                var user = e.Args[0].ToUpper();
                var userToKick = e.Channel.Users.Where(input => input.Name.ToUpper() == user).FirstOrDefault();
                var ID = userToKick.Id;
-               await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + ID + "> has been ***WARNED*** Reason: ");
-               await userToKick.SendMessage("You have been warned in JXKGS. Reason: ");
-               StreamWriter write = new StreamWriter("warnings-" + serverName + ".txt", true);
-               write.WriteLine(timeStamp + userToKick + " was warned. Reason: ");
-               write.Close();
+               var oldLines = System.IO.File.ReadAllLines("warnings-" + serverName + ".txt");
+               var newLines = oldLines.Where(line => !line.Contains(userToKick.ToString()));
+               File.WriteAllLines("warnings-" + serverName + ".txt", newLines);
+               await e.Channel.SendMessage("Warnings for <@" + ID + "> have been deleted.");
            });
+            cmds.CreateCommand("listwarn").AddCheck((cm, u, ch) => u.ServerPermissions.ManageRoles)
+            .Parameter("user", ParameterType.Multiple)
+            .Do(async (e) =>
+            {
+                var user = e.Args[0].ToUpper();
+                var userToKick = e.Channel.Users.Where(input => input.Name.ToUpper() == user).FirstOrDefault();
+                var ID = userToKick.Id;
+                var result = File.ReadAllLines("warnings-" + serverName + ".txt").Where(c=>c.Contains(userToKick.ToString())).FirstOrDefault();
+                if(result == null)
+                {
+                    await e.Channel.SendMessage("<:zelda:301087844741414922> This user has no warnings.");
+                } else {
+                    await e.Channel.SendMessage("```" + result + "```");
+                }
+            });
 
             cmds.CreateCommand("mute").AddCheck((cm, u, ch) => u.ServerPermissions.ManageRoles)
             .Parameter("user", Discord.Commands.ParameterType.Required)
@@ -191,10 +225,10 @@ namespace JXKbot
         }
         private void Log(object sender, LogMessageEventArgs e){
             
-            if(e.Message.Contains("bot:")){
-                Console.WriteLine("works!");
+            while(timeStamp != DateTime.Now.ToString()){
+                timeStamp = DateTime.Now.ToString();
             }
-            Console.WriteLine(e.Message);
+            Console.WriteLine(timeStamp + " " + e.Message);
         }
     }
 }

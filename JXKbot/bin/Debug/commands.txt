@@ -1,5 +1,5 @@
-?help: Shows commands
-?kick: <user> Kicks user *Staff only*
+?help Shows commands
+?kick <user> Kicks user *Staff only*
 ?ban <user> Bans user *Staff only*
 ?warn <user> <reason> Warns user *Staff only*
 ?ping Play ping-pong
@@ -8,3 +8,5 @@
 ?announce <channel> <message> Make announcements *Staff only*
 ?purge <number> Purges messages *Staff only*
 ?reboot Reboots the bot *Staff only*
+?clearwarn <user> Deletes warning(s) for the specified user
+?listwarn <user> List user warnings
