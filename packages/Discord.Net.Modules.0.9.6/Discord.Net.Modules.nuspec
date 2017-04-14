@@ -1,0 +1,25 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2012/06/nuspec.xsd">
+  <metadata>
+    <id>Discord.Net.Modules</id>
+    <version>0.9.6</version>
+    <authors>RogueException</authors>
+    <owners>RogueException</owners>
+    <licenseUrl>http://opensource.org/licenses/MIT</licenseUrl>
+    <projectUrl>https://github.com/RogueException/Discord.Net</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>[Deprecated] A Discord.Net extension adding basic plugin support.</description>
+    <tags>discord discordapp</tags>
+    <dependencies>
+      <group targetFramework=".NETFramework4.5">
+        <dependency id="Discord.Net" version="[0.9.6, )" />
+        <dependency id="Discord.Net.Commands" version="[0.9.6, )" />
+      </group>
+      <group targetFramework=".NETStandard1.3">
+        <dependency id="NETStandard.Library" version="[1.6.0, )" />
+        <dependency id="Discord.Net" version="[0.9.6, )" />
+        <dependency id="Discord.Net.Commands" version="[0.9.6, )" />
+      </group>
+    </dependencies>
+  </metadata>
+</package>

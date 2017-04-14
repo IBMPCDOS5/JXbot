@@ -8,9 +8,9 @@ using System.Runtime.InteropServices;
 [assembly: AssemblyTitle("JXKbot")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
-[assembly: AssemblyCompany("WZT")]
+[assembly: AssemblyCompany("JayXKanz666")]
 [assembly: AssemblyProduct("JXKbot")]
-[assembly: AssemblyCopyright("Copyright © WZT 2017")]
+[assembly: AssemblyCopyright("Copyright © JayXKanz666 2017")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

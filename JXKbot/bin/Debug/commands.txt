@@ -1,12 +1,20 @@
-?help Shows commands
-?kick <user> Kicks user *Staff only*
-?ban <user> Bans user *Staff only*
-?warn <user> <reason> Warns user *Staff only*
+```?help Shows commands
 ?ping Play ping-pong
 ?status View status of the bot
-?kill Terminate the bot *Staff only*
-?announce <channel> <message> Make announcements *Staff only*
-?purge <number> Purges messages *Staff only*
-?reboot Reboots the bot *Staff only*
-?clearwarn <user> Deletes warning(s) for the specified user
-?listwarn <user> List user warnings
+?question The bot will ask random question
+---------------------------------------------------------------------------------
+?kick <user> Kicks user ***Staff only***
+?ban <user> Bans user ***Staff only***
+?unban <user> Unbans user ***Staff only***
+?announce <channel> <message> Make announcements ***Staff only***
+?purge <number> Purges messages ***Staff only***
+?kill Terminate the bot ***Staff only***
+?reboot Reboots the bot ***Staff only***
+?warn <user> <reason> Warns user ***Staff only***
+?clearwarn <user> Deletes warning(s) for the specified user ****Staff only***
+?listwarn <user> List user warnings ***Staff only***
+?mute <user> <reason> Mutes specified user ***Staff only***
+?unmute <user> Unmutes specified user ***Staff only***
+?addrole <user> <role> Adds user to a role ***Staff only***
+?delrole <user> <role> Deletes user from a role ***Staff only***
+?createrole <role> Creates a role ***Staff only***```
