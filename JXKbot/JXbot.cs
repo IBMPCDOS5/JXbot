@@ -1,4 +1,16 @@
-﻿using Discord;
+﻿/*
+MIT License
+
+Copyright (c) JayXKanz666 2017
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
+using Discord;
 using Discord.Commands;
 using System;
 using System.IO;
@@ -6,11 +18,9 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using Discord.Audio;
-using NAudio;
-using NAudio.Wave;
-using NAudio.CoreAudioApi;using Discord.Modules;
-using System.Threading;
 using System.Xml;
+using System.Collections.Generic;
+using System.Timers;
 
 namespace JXKbot
 {
@@ -20,10 +30,20 @@ namespace JXKbot
         CommandService cmds;
         String timeStamp = DateTime.Now.ToString();
         Random rnd = new Random();
-        XmlDocument config = new XmlDocument();
+        Timer gameTimer = new Timer();
+        public User usertoJail;
+        public bool jailTime = false;
         public string serverName = "";
         public bool askedQuestion = false;
+        public int sqrt()
+        {
+            var exclude = new HashSet<int>() { 2, 3, 5, 6, 7, 8, 10, 11, 12, 13, 14, 15 };
+            var range = Enumerable.Range(1, 16).Where(i => !exclude.Contains(i));
 
+            var rand = new System.Random();
+            int index = rand.Next(0, 16 - exclude.Count);
+            return range.ElementAt(index);
+        }
         public void FS(string userToKick, string reason) {
             while (timeStamp != DateTime.Now.ToString())
             {
@@ -38,7 +58,6 @@ namespace JXKbot
 
             int firstVal = 0;
             int secondVal = 0;
-            int sqRoot = 0;
             int nmb = 0;
             int comb = 0;
             int sin = 0;
@@ -55,7 +74,7 @@ namespace JXKbot
                 input.AllowMentionPrefix = true;
             }
             );
-
+            var jason = new HashSet<string>() { "JASON", "jason", "Jason", "JayXKanz", "jayxkanz" };
             client.MessageDeleted += async (s, e) =>
             {
                 if (!e.Message.IsAuthor) {
@@ -71,10 +90,20 @@ namespace JXKbot
             };
             client.MessageReceived += async (s, e) =>
             { 
-                if(askedQuestion){
+                if(e.Message.IsMentioningMe(false) && e.Message.Text.Contains("?"))
+                {
+                    await e.Channel.SendMessage("<@" + e.User.Id + "> Maybe? I don't know.");
+                } else if(e.Message.IsMentioningMe(false) && e.Message.Text.Contains("hello"))
+                {
+                    await e.Channel.SendMessage("<@" + e.User.Id + "> Hey there!");
+                } else if (e.Message.IsMentioningMe(false) && e.Message.Text.Contains("jason") && !e.Message.IsAuthor || e.Message.IsMentioningMe(false) && e.Message.Text.Contains("Jason") && !e.Message.IsAuthor)
+                {
+                    await e.Channel.SendMessage("<@" + e.User.Id + "> Jason? What about him? He programmed me.");
+                }
+                    if (askedQuestion){
                     if (nmb == 0)
-                    {
-                        if(Math.Round(Math.Sqrt(sqRoot),2).ToString() == e.Message.Text){
+                    {;
+                        if (Math.Ceiling(Math.Sqrt(sqrt())).ToString() == e.Message.Text){
                             await e.Channel.SendMessage("<@" + e.User.Id + "> answered correctly");
                             askedQuestion = false;
                         }
@@ -96,7 +125,10 @@ namespace JXKbot
 
             client.Ready += (s, e) =>
             {
-                setGame(null);
+                setGame(null,null);
+                gameTimer.Interval = 500000;
+                gameTimer.Elapsed += new ElapsedEventHandler(setGame);
+                gameTimer.Start();
                 Console.WriteLine(timeStamp + " JXbot is now ready.");
             };
 
@@ -110,16 +142,65 @@ namespace JXKbot
 
             serverName = client.SessionId;
 
+            cmds.CreateCommand("timer")
+            .Parameter("time", ParameterType.Required)
+            .Do(async (e) =>
+            {
+                var time = e.Args[0].ToString(); var timeint = Convert.ToInt32(time);
+                await e.Channel.SendMessage("<@" + e.User.Id + "> I'll remind you in " + timeint + " minutes.");
+                await Task.Delay(timeint * 60000);
+                await e.Channel.SendMessage("<@" + e.User.Id + "> PING!");
+            });
+
+            cmds.CreateCommand("jail")
+            .Parameter("user", ParameterType.Optional)
+            .Do(async (e) =>
+            {
+                if (!e.User.ServerPermissions.ManageRoles)
+                {
+                    await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + ">, What? You're not a member of the staff!");
+                }
+                else
+                {
+                    var user = e.Args[0].ToUpper();
+                    if (user.Contains("!"))
+                    {
+                        user = user.Replace("<@!", "");
+                        user = user.Replace(">", "");
+                    }
+                    else
+                    {
+                        user = user.Replace("<@", "");
+                        user = user.Replace(">", "");
+                    }
+                    usertoJail = e.Channel.Users.Where(input => input.Id.ToString() == user).FirstOrDefault();
+                    var ID = usertoJail.Id;
+                    await e.Channel.SendMessage("<:fireemblem:301087475508707328> Are you sure you want to jail " + usertoJail.Name + "? Type ?confjail to confirm");
+                }
+            });
+
+            cmds.CreateCommand("confjail")
+            .Do(async (e) =>
+            {
+                Discord.Role roles = (Discord.Role)e.Server.GetRole(302584782024605700);
+                await usertoJail.AddRoles(roles);
+                await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + usertoJail.Id + "> has been ***JAILED***");
+                await usertoJail.SendMessage("You have been jailed in JXKGS.");
+                StreamWriter write = new StreamWriter("warnings-" + serverName + ".txt", true);
+                write.WriteLine(timeStamp + " " + usertoJail + " was jailed.");
+                write.Close();
+
+            });
+
             cmds.CreateCommand("question")
             .Do(async (e) =>
             {
                 firstVal = rnd.Next(5, 3000);
                 secondVal = rnd.Next(35, 7000);
-                sqRoot = rnd.Next(50, 70);
                 nmb = rnd.Next(0, 3);
                 sin = rnd.Next(5,30);
                 switch(nmb){
-                    case 0: await e.Channel.SendMessage("What's the square root of " + sqRoot + "?");
+                    case 0: await e.Channel.SendMessage("What's the square root of " + sqrt() + "?");
                         break;
                     case 1: await e.Channel.SendMessage("What's " + firstVal + "+" + secondVal + "?");
                         comb = firstVal + secondVal;
@@ -136,7 +217,7 @@ namespace JXKbot
             {
                 if (!e.User.ServerPermissions.ManageRoles)
                 {
-                    await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + "> What? You're not a member of the staff!");
+                    await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + ">, What? You're not a member of the staff!");
                 } else {
                     var reboot = Assembly.GetExecutingAssembly().Location;
                     System.Diagnostics.Process.Start(reboot);
@@ -161,7 +242,7 @@ namespace JXKbot
            {
                if (!e.User.ServerPermissions.ManageRoles)
                {
-                   await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + "> What? You're not a member of the staff!");
+                   await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + ">, What? You're not a member of the staff!");
                }
                else
                {
@@ -188,7 +269,7 @@ namespace JXKbot
            .Do(async (e) =>
            {
                if (!e.User.ServerPermissions.ManageRoles) {
-                   await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + "> What? You're not a member of the staff!");
+                   await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + ">, What? You're not a member of the staff!");
                } else {
                    var user = e.Args[0].ToUpper();
                    if (user.Contains("!"))
@@ -205,7 +286,7 @@ namespace JXKbot
                    var ID = userToKick.Id;
                    if (!e.User.Roles.Any(c => c.Name.ToUpper() == "ADMIN" || !e.User.Roles.Any(x => x.Name.ToUpper() == "AREN" && ID == 223987673365217281) || ID == 191290329985581069))
                    {
-                       await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + "> why would YOU be able to type that in?");
+                       await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + ">, Why would YOU be able to type that in?");
                    }
                    else
                    {
@@ -220,7 +301,7 @@ namespace JXKbot
             {
                 if (!e.User.ServerPermissions.ManageRoles)
                 {
-                    await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + "> What? You're not a member of the staff!");
+                    await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + ">, What? You're not a member of the staff!");
                 }
                 else
                 {
@@ -248,7 +329,7 @@ namespace JXKbot
            {
                if (!e.User.ServerPermissions.ManageRoles)
                {
-                   await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + "> What? You're not a member of the staff!");
+                   await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + ">, What? You're not a member of the staff!");
                }
                else
                {
@@ -282,7 +363,7 @@ namespace JXKbot
            {
                if (!e.User.ServerPermissions.ManageRoles)
                {
-                   await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + "> What? You're not a member of the staff!");
+                   await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + ">, What? You're not a member of the staff!");
                }
                else
                {
@@ -312,7 +393,7 @@ namespace JXKbot
 
                 if (!e.User.ServerPermissions.ManageRoles)
                 {
-                    await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + "> What? You're not a member of the staff!");
+                    await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + ">, What? You're not a member of the staff!");
                 }
                 else
                 {
@@ -347,7 +428,7 @@ namespace JXKbot
            {
                if (!e.User.ServerPermissions.ManageRoles)
                {
-                   await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + "> What? You're not a member of the staff!");
+                   await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + ">, What? You're not a member of the staff!");
                }
                else
                {
@@ -385,7 +466,7 @@ namespace JXKbot
             {
                 if (!e.User.ServerPermissions.ManageRoles)
                 {
-                    await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + "> What? You're not a member of the staff!");
+                    await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + ">, What? You're not a member of the staff!");
                 }
                 else
                 {
@@ -414,7 +495,7 @@ namespace JXKbot
             {
                 if (!e.User.ServerPermissions.ManageRoles)
                 {
-                    await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + "> What? You're not a member of the staff!");
+                    await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + ">, What? You're not a member of the staff!");
                 }
                 else
                 {
@@ -438,7 +519,7 @@ namespace JXKbot
                     }
                     if (e.User.Roles.Any(c => c.Name.ToUpper() == "MOD" && getRole.Id == 301064839835549696) || getRole.Id == 301033615687680000)
                     {
-                        await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + "> why would YOU be able to type that in?");
+                        await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + ">, Why would YOU be able to type that in?");
                     }
                     else
                     {
@@ -454,7 +535,7 @@ namespace JXKbot
             {
                 if (!e.User.ServerPermissions.ManageRoles)
                 {
-                    await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + "> What? You're not a member of the staff!");
+                    await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + ">, What? You're not a member of the staff!");
                 }
                 else
                 {
@@ -481,7 +562,7 @@ namespace JXKbot
                     }
                     if (e.User.Roles.Any(c => c.Name.ToUpper() == "ADMIN" && getRole.Id == 301064839835549696) || getRole.Id == 301033615687680000)
                     {
-                        await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + "> why would YOU be able to type that in?");
+                        await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + ">, Why would YOU be able to type that in?");
                     }
                     else
                     {
@@ -497,7 +578,7 @@ namespace JXKbot
             {
                 if (!e.User.ServerPermissions.ManageRoles)
                 {
-                    await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + "> What? You're not a member of the staff!");
+                    await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + ">, What? You're not a member of the staff!");
                 }
                 else
                 {
@@ -521,7 +602,7 @@ namespace JXKbot
            {
                if (!e.User.ServerPermissions.ManageRoles)
                {
-                   await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + "> What? You're not a member of the staff!");
+                   await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + ">, What? You're not a member of the staff!");
                }
                else
                {
@@ -536,7 +617,7 @@ namespace JXKbot
             {
                 if (!e.User.ServerPermissions.ManageRoles)
                 {
-                    await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + "> What? You're not a member of the staff!");
+                    await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + ">, What? You're not a member of the staff!");
                 }
                 else
                 {
@@ -552,11 +633,11 @@ namespace JXKbot
                 });
         }
 
-        void setGame(object o)
+        void setGame(object o, ElapsedEventArgs e)
         {
             var game = "";
             Random random = new Random();
-            switch ((random.Next(0, 6)))
+            switch ((random.Next(0, 7)))
             {
                 case 0:
                     client.SetGame("testing bugs");
@@ -576,6 +657,9 @@ namespace JXKbot
                 case 5:
                     client.SetGame("being annoyed by Wrappers");
                     break;
+                case 6:
+                    client.SetGame("being annoyed by 143mailliw");
+                    break;
             }
         }
 
@@ -588,7 +672,7 @@ namespace JXKbot
            {
                if (!e.User.ServerPermissions.ManageRoles)
                {
-                   await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + "> What? You're not a member of the staff!");
+                   await e.Channel.SendMessage("<:fireemblem:301087475508707328> <@" + e.User.Id + ">, What? You're not a member of the staff!");
                }
                else
                {
