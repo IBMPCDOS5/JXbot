@@ -18,15 +18,15 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using Discord.Audio;
-using System.Xml;
 using System.Collections.Generic;
 using System.Timers;
+using static Discord.API.Client.Message;
 
 namespace JXKbot
 {
     public class JXbot
     {
-        DiscordClient client;
+        Discord.DiscordClient client;
         CommandService cmds;
         String timeStamp = DateTime.Now.ToString();
         Random rnd = new Random();
@@ -62,9 +62,9 @@ namespace JXKbot
             int comb = 0;
             int sin = 0;
 
-            client = new DiscordClient(input =>
+            client = new Discord.DiscordClient(input =>
             {
-                input.LogLevel = LogSeverity.Info;
+                input.LogLevel = LogSeverity.Verbose;
                 input.LogHandler = Log;
             });
 
@@ -410,14 +410,28 @@ namespace JXKbot
                     }
                     var userToKick = e.Channel.Users.Where(input => input.Id.ToString() == user).FirstOrDefault();
                     var ID = userToKick.Id;
-                    var result = File.ReadAllLines("warnings-" + serverName + ".txt").Where(c => c.Contains(userToKick.ToString())).FirstOrDefault();
-                    if (result == null)
+                    //var result = File.ReadAllLines("warnings-" + serverName + ".txt").Where(c => c.Contains(userToKick.ToString()));
+                    string line;
+                    string results = "";
+                    using (StreamReader file = new StreamReader("warnings-" + serverName + ".txt"))
+                    {
+                        while ((line = file.ReadLine()) != null)
+                        {
+                            if (line.Contains(userToKick.ToString()))
+                            {
+                                results += line + "\n";
+                            }
+                        }
+                    }
+                    if (results == "")
                     {
                         await e.Channel.SendMessage("<:zelda:301087844741414922> This user has no warnings.");
                     }
                     else
                     {
-                        //await e.Channel.SendMessage("```" + result + "```");
+                        Embed embed = new Embed();
+                        await e.Channel.SendMessage("```" + results + "```");
+                        
                     }
                 }
             });
@@ -655,7 +669,7 @@ namespace JXKbot
                     client.SetGame("secretly hating Jason");
                     break;
                 case 5:
-                    client.SetGame("being annoyed by Wrappers");
+                    client.SetGame("stalking Caljos13");
                     break;
                 case 6:
                     client.SetGame("being annoyed by 143mailliw");
