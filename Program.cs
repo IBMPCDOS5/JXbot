@@ -1,4 +1,12 @@
-﻿using System;
+﻿/*
+MIT License
+Copyright (c) JayXKanz666 2017
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
+using System;
 using System.Threading.Tasks;
 using Discord;
 using Discord.WebSocket;
@@ -8,6 +16,13 @@ using System.IO;
 using System.Text.RegularExpressions;
 using JXbot.Common;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
+using Microsoft.Extensions.DependencyInjection;
+using JXbot.Services;
+using System.Reflection;
+using System.Runtime.InteropServices;
+using JXbot.Extensions;
 
 namespace JXbot
 {
@@ -16,31 +31,37 @@ namespace JXbot
         public static void Main(string[] args) =>
             new Program().Start().GetAwaiter().GetResult();
 
+        public CommandService _service = new CommandService();
+        private IServiceProvider _provider;
         private DiscordSocketClient client;
-        private CommandHandler handler;
         public static bool doModeration = false;
+        public static bool pollEnabled = false;
+        public static bool isPanic = false;
         public Random rnd = new Random();
-        PublicModule module = new PublicModule();
-        DateTime startTime = DateTime.Now;
-        public static Dictionary<ulong, bool> userSuggested = new Dictionary<ulong, bool>();
-        public Dictionary<ulong, string> titleSug = new Dictionary<ulong, string>();
-        public Dictionary<ulong, string> descSug = new Dictionary<ulong, string>();
-        Dictionary<ulong, string> messageHistory = new Dictionary<ulong, string>();
-        Dictionary<ulong, int> messageCount = new Dictionary<ulong, int>();
-        public static Dictionary<ulong, int> currentState = new Dictionary<ulong, int>();
-        string title = "";
-        string description = "";
         public static int state = 0;
         public static SocketTextChannel channel = null;
+        public DictionaryExtension _dict = new DictionaryExtension();
+        PublicModule module = new PublicModule();
+        DateTime startTime = DateTime.Now;
+        public async Task Install()
+        {
+            await _service.AddModulesAsync(Assembly.GetEntryAssembly());
+            var serviceProvider = ConfigureServices();
+            _provider = serviceProvider;
+            client.MessageReceived += HandleCommand;
+        }
 
         public async Task Start()
         {
+            Console.WriteLine($"JXbot v{Assembly.GetExecutingAssembly().GetName().Version}");
             Configuration.EnsureExists();
 
             client = new DiscordSocketClient();
 
             client.Log += Log;
 
+            client.UserJoined += UserJoined;
+            client.UserLeft += UserLeft;
             client.MessageReceived += async (msg) =>
             {
                 var message = msg as SocketUserMessage;
@@ -54,14 +75,27 @@ namespace JXbot
                 int argPos = 0;
 
                 if (context.Guild != null)
-                    log = context.Guild.GetTextChannel(301094488955420673);
-
-                if (doModeration)
                 {
-                    if (Array.IndexOf(badword, context.Message.Content.ToLower()) != -1)
+                    log = context.Guild.GetTextChannel(301094488955420673);
+                    if (!DictionaryExtension.serverModeration.ContainsKey(context.Guild.Id))
+                        DictionaryExtension.serverModeration.Add(context.Guild.Id, false);
+                }
+
+                if (isPanic)
+                {
+                    var u = context.User as IGuildUser;
+                    if (!u.IsBot && !u.GuildPermissions.BanMembers)
+                    {
+                        await context.Message.DeleteAsync();
+                    }
+                }
+
+                if (context.Guild != null && DictionaryExtension.serverModeration[context.Guild.Id])
+                {
+                    if (Array.IndexOf(badword, context.Message.Content.ToLower()) != -1 && !context.Message.Content.Contains("penistone"))
                     {
                         await log.SendMessageAsync("<@" + context.User.Id + "> wrote " + context.Message.Content + " in " + context.Channel + ".");
-                        switch(rnd.Next(0,4))
+                        switch (rnd.Next(0, 4))
                         {
                             case 0:
                                 await context.Channel.SendMessageAsync("<@" + context.User.Id + "> Don't be rude!");
@@ -115,7 +149,6 @@ namespace JXbot
                             await context.Channel.SendMessageAsync("<@" + context.User.Id + "> answered correctly");
                             PublicModule.askedQuestion = false;
                         }
-
                     }
                     else if (PublicModule.nmb == 1)
                     {
@@ -151,32 +184,32 @@ namespace JXbot
                     }
                 }
 
-                if(userSuggested.ContainsKey(context.User.Id))
+                if (DictionaryExtension.userSuggested.ContainsKey(context.User.Id))
                 {
                     var currentDM = await context.User.CreateDMChannelAsync();
                     if (context.Message.Content.ToLower() == "q" && context.Guild == null)
                     {
                         await currentDM.SendMessageAsync("Process cancelled.");
-                        userSuggested.Remove(context.User.Id);
-                        currentState.Remove(context.User.Id);
+                        DictionaryExtension.userSuggested.Remove(context.User.Id);
+                        DictionaryExtension.currentState.Remove(context.User.Id);
                     }
                     else if (context.Guild == null)
                     {
-                        switch (currentState[context.User.Id])
+                        switch (DictionaryExtension.currentState[context.User.Id])
                         {
                             case 1:
                                 if (context.Message.Content.ToLower() == "y")
                                 {
-                                    currentState[context.User.Id] = 2;
+                                    DictionaryExtension.currentState[context.User.Id] = 2;
                                     var e = new EmbedBuilder()
                                     {
                                         Title = "**Title**",
-                                        Color = new Color(177, 27, 179),
+                                        Color = new Color(114, 33, 161),
                                         Description = "Enter the title for your suggestion (20 characters or less)"
 
                                     };
                                     await currentDM.SendMessageAsync("", false, e);
-                                 //   await currentDM.SendMessageAsync("**Title**\nEnter the title for your suggestion (20 characters or less)");
+                                    //   await currentDM.SendMessageAsync("**Title**\nEnter the title for your suggestion (20 characters or less)");
                                 }
                                 break;
                             case 2:
@@ -191,14 +224,14 @@ namespace JXbot
                                 else
                                 {
                                     //title = context.Message.Content;
-                                    titleSug.Add(context.User.Id, context.Message.Content);
-                                    if (description == "")
+                                    _dict.titleSug.Add(context.User.Id, context.Message.Content);
+                                    if (!_dict.descSug.ContainsKey(context.User.Id))
                                     {
-                                        currentState[context.User.Id] = 3;
+                                        DictionaryExtension.currentState[context.User.Id] = 3;
                                         var e = new EmbedBuilder()
                                         {
                                             Title = "**Suggestion**",
-                                            Color = new Color(177, 27, 179),
+                                            Color = new Color(114, 33, 161),
                                             Description = "Write something that's relevant to the server.\nA good example is: `There should be a role for people who are gamers`\nA bad example is: `Make a role for gamers now, or else..`\nPlease write your suggestion now (500 characters or less)"
 
                                         };
@@ -206,7 +239,7 @@ namespace JXbot
                                     }
                                     else
                                     {
-                                        currentState[context.User.Id] = 4;
+                                        DictionaryExtension.currentState[context.User.Id] = 4;
                                         EmbedBuilder eb = new EmbedBuilder();
                                         EmbedFooterBuilder efb = new EmbedFooterBuilder();
                                         EmbedAuthorBuilder eab = new EmbedAuthorBuilder();
@@ -214,12 +247,12 @@ namespace JXbot
                                         eab.IconUrl = context.User.GetAvatarUrl();
                                         eab.Name = context.User.Username;
                                         eb.WithAuthor(eab);
-                                        eb.Color = new Color(177, 27, 179);
+                                        eb.Color = new Color(114, 33, 161);
                                         eb.WithFooter(efb);
                                         eb.AddField((ebf) =>
                                         {
-                                            ebf.Name = title;
-                                            ebf.Value = description;
+                                            ebf.Name = _dict.titleSug[context.User.Id];
+                                            ebf.Value = _dict.descSug[context.User.Id];
                                         });
                                         await currentDM.SendMessageAsync("**Confirmation**\nThis is what the staff will see:\n", false, eb);
                                         await currentDM.SendMessageAsync("\nReady to submit this suggestion?\n[y] Submit\n[r] Start over");
@@ -238,8 +271,8 @@ namespace JXbot
                                 else
                                 {
                                     //description = context.Message.Content;
-                                    descSug.Add(context.User.Id, context.Message.Content);
-                                    currentState[context.User.Id] = 4;
+                                    _dict.descSug.Add(context.User.Id, context.Message.Content);
+                                    DictionaryExtension.currentState[context.User.Id] = 4;
                                     EmbedBuilder eb = new EmbedBuilder();
                                     EmbedFooterBuilder efb = new EmbedFooterBuilder();
                                     EmbedAuthorBuilder eab = new EmbedAuthorBuilder();
@@ -247,12 +280,12 @@ namespace JXbot
                                     eab.IconUrl = context.User.GetAvatarUrl();
                                     eab.Name = context.User.Username;
                                     eb.WithAuthor(eab);
-                                    eb.Color = new Color(177, 27, 179);
+                                    eb.Color = new Color(114, 33, 161);
                                     eb.WithFooter(efb);
                                     eb.AddField((ebf) =>
                                     {
-                                        ebf.Name = titleSug[context.User.Id];
-                                        ebf.Value = descSug[context.User.Id];
+                                        ebf.Name = _dict.titleSug[context.User.Id];
+                                        ebf.Value = _dict.descSug[context.User.Id];
                                     });
                                     await currentDM.SendMessageAsync("**Confirmation**\nThis is what the staff will see:\n", false, eb);
                                     await currentDM.SendMessageAsync("\nReady to submit this suggestion?\n[y] Submit\n[r] Start over");
@@ -268,33 +301,29 @@ namespace JXbot
                                     eab.IconUrl = context.User.GetAvatarUrl();
                                     eab.Name = context.User.Username;
                                     eb.WithAuthor(eab);
-                                    eb.Color = new Color(177, 27, 179);
+                                    eb.Color = new Color(114, 33, 161);
                                     eb.WithFooter(efb);
                                     eb.AddField((ebf) =>
                                     {
-                                        ebf.Name = titleSug[context.User.Id];
-                                        ebf.Value = descSug[context.User.Id];
+                                        ebf.Name = _dict.titleSug[context.User.Id];
+                                        ebf.Value = _dict.descSug[context.User.Id];
                                     });
                                     await channel.SendMessageAsync("", false, eb.Build());
                                     await currentDM.SendMessageAsync("Thanks for your suggestion! c:");
-                                    description = "";
-                                    title = "";
-                                    userSuggested.Remove(context.User.Id);
-                                    titleSug.Remove(context.User.Id);
-                                    descSug.Remove(context.User.Id);
-                                    currentState.Remove(context.User.Id);
+                                    DictionaryExtension.userSuggested.Remove(context.User.Id);
+                                    _dict.titleSug.Remove(context.User.Id);
+                                    _dict.descSug.Remove(context.User.Id);
+                                    DictionaryExtension.currentState.Remove(context.User.Id);
                                 }
                                 else if (context.Message.Content.ToLower() == "r" && context.Guild == null)
                                 {
-                                    currentState[context.User.Id] = 1;
-                                    description = "";
-                                    title = "";
-                                    titleSug.Remove(context.User.Id);
-                                    descSug.Remove(context.User.Id);
+                                    DictionaryExtension.currentState[context.User.Id] = 1;
+                                    _dict.titleSug.Remove(context.User.Id);
+                                    _dict.descSug.Remove(context.User.Id);
                                     var e = new EmbedBuilder()
                                     {
-                                        Title = "**Make a suggestion**\n",
-                                        Color = new Color(177, 27, 179),
+                                        Title = $"**Make a suggestion for {context.Guild.Name}**\n",
+                                        Color = new Color(114, 33, 161),
                                         Description = "Please be aware of the following:\n" +
                                         "- Your Discord Username will be recorded.\n" +
                                         "- Your suggestion will be visible for anyone to see.\n" +
@@ -319,6 +348,84 @@ namespace JXbot
                     }
                 }
 
+                if (pollEnabled && !context.User.IsBot)
+                {
+                    if (!DictionaryExtension.userVoted.ContainsKey(context.User.Id))
+                    {
+                        DictionaryExtension.userVoted.Add(context.User.Id, false);
+                    }
+
+                    int test = 0;
+
+                    int[] options = new int[PublicModule.incr];
+
+                    for (int i = 0; i < PublicModule.incr; i++)
+                    {
+                        options[i] = i;
+                    }
+
+                    if (int.TryParse(message.Content, out test) && options.Contains(Convert.ToInt32(message.Content) - 1) && !DictionaryExtension.userVoted[context.User.Id])
+                    {
+                        await context.Channel.SendMessageAsync($"{context.User.Username} voted for {test}");
+                        DictionaryExtension.votesPerOpt.Add(test, 0);
+                        DictionaryExtension.votesPerOpt[test] += 1;
+                        DictionaryExtension.userVoted[context.User.Id] = true;
+                    }
+                }
+
+                if (!context.User.IsBot)
+                {
+                    if (!_dict.messageHistory.Keys.Contains(context.User.Id))
+                    {
+                        _dict.messageHistory.Add(context.User.Id, context.Message.Content);
+                    }
+
+                    if (!_dict.messageCount.Keys.Contains(context.User.Id))
+                    {
+                        _dict.messageCount.Add(context.User.Id, 0);
+                    }
+                    else
+                    {
+                        _dict.messageCount[context.User.Id] += 1;
+                    }
+                    if (_dict.messageHistory[context.User.Id] != context.Message.Content)
+                    {
+                        _dict.messageCount[context.User.Id] = 0;
+                    }
+
+                    
+                    if (_dict.messageHistory[context.User.Id] == context.Message.Content && _dict.messageCount[context.User.Id] == 5)
+                    {
+                        var logChannel = context.Guild.GetTextChannel(301094488955420673);
+                        await context.Channel.SendMessageAsync("<@" + context.User.Id + "> You're really starting to piss me off. A notification has been sent to the staff.");
+                        await logChannel.SendMessageAsync($"{context.User.Username}#{context.User.Discriminator} was spamming in {context.Guild}, #{context.Channel}");
+                        await context.Message.DeleteAsync();
+                    }
+                    else if (_dict.messageHistory[context.User.Id] == context.Message.Content && _dict.messageCount[context.User.Id] > 5)
+                    {
+                        await context.Message.DeleteAsync();
+                    }
+                    else if (_dict.messageHistory[context.User.Id] == context.Message.Content && _dict.messageCount[context.User.Id] > 3)
+                    {
+                        switch (rnd.Next(0, 4))
+                        {
+                            case 0:
+                                await context.Channel.SendMessageAsync("<@" + context.User.Id + "> Don't spam.");
+                                break;
+                            case 1:
+                                await context.Channel.SendMessageAsync("<@" + context.User.Id + "> You're just annoying everyone.");
+                                break;
+                            case 2:
+                                await context.Channel.SendMessageAsync("<@" + context.User.Id + "> I don't need to see your message more than once.");
+                                break;
+                            case 3:
+                                await context.Channel.SendMessageAsync("<@" + context.User.Id + "> It'd be nicer if you could just.. STOP");
+                                break;
+                        }
+                        await context.Message.DeleteAsync();
+                    }
+                    _dict.messageHistory[context.User.Id] = context.Message.Content;
+                }
 
                 if (message.HasMentionPrefix(client.CurrentUser, ref argPos) && message.Content.Contains("<3"))
                 {
@@ -345,7 +452,7 @@ namespace JXbot
                 {
                     await context.Channel.SendMessageAsync("<@" + context.User.Id + "> Wanna get banned?");
                 }
-                else if (message.HasMentionPrefix(client.CurrentUser, ref argPos) && message.Content.Contains("yes") || message.HasMentionPrefix(client.CurrentUser, ref argPos) && message.Content.Contains("yeah") || message.HasMentionPrefix(client.CurrentUser, ref argPos) && message.Content.Contains("right?"))
+                else if (Configuration.Load().Blacklist.Contains(context.User.Id) && message.HasMentionPrefix(client.CurrentUser, ref argPos) && message.Content.Contains("yes") || message.HasMentionPrefix(client.CurrentUser, ref argPos) && message.Content.Contains("yeah") || Configuration.Load().Blacklist.Contains(context.User.Id) && message.HasMentionPrefix(client.CurrentUser, ref argPos) && message.Content.Contains("right?"))
                 {
                     await context.Channel.SendMessageAsync("<@" + context.User.Id + "> I guess.");
                 }
@@ -353,20 +460,12 @@ namespace JXbot
                 {
                     await context.Channel.SendMessageAsync("<@" + context.User.Id + "> I guess not.");
                 }
-
-            };
-            client.MessageDeleted += async (e,msg) =>
-            {
-                var message = msg as SocketUserMessage;
-
-                var context = new SocketCommandContext(client, message);
-
-                if(!context.User.IsBot)
+                else if (message.HasMentionPrefix(client.CurrentUser, ref argPos) && message.Content.Contains("like astralmod"))
                 {
-                    await context.Guild.GetTextChannel(301094488955420673).SendMessageAsync($"[{context.Guild}] {context.Message.Timestamp}: {context.User} {"deleted message in <#" + context.Channel.Id + ">"}: {"```" + context.Message.Content + "```"}");
+                    await context.Channel.SendMessageAsync("<@" + context.User.Id + "> WHAT DID YOU SAY? YOU MENTIONED THE WORST BOT!");
                 }
             };
-            client.MessageUpdated += async (e,msg,s) =>
+            client.MessageDeleted += async (e, msg) =>
             {
                 var message = msg as SocketUserMessage;
 
@@ -374,24 +473,99 @@ namespace JXbot
 
                 if (!context.User.IsBot)
                 {
-                    //await context.Guild.GetTextChannel(301094488955420673).SendMessageAsync($"[{context.Guild}] {startTime}: {context.User} {"changed message in <#" + context.Channel.Id + ">"}: {"```" + message. + "```"} {"```" + e.Value + "```"}");
+                    await context.Guild.GetTextChannel(301094488955420673).SendMessageAsync($"[{context.Guild}] {context.Message.Timestamp}: {context.User} {"deleted message in <#" + context.Channel.Id + ">"}: {"```" + context.Message.Content + "```"}");
+                }
+            };
+            client.MessageUpdated += async (e, msg, s) =>
+            {
+                var message = msg as SocketUserMessage;
+                var test = s as SocketUserMessage;
+
+                var context = new SocketCommandContext(client, message);
+
+                if (!context.User.IsBot)
+                {
+                //    await context.Guild.GetTextChannel(301094488955420673).SendMessageAsync($"[{context.Guild}] {startTime}: {context.User} {"changed message in <#" + context.Channel.Id + ">"}: {"```" + msg - 1 + "```"} to {"```" + msg.Content + "```"}");
                 }
             };
 
             var timer = new System.Threading.Timer(e => currentGame(),
             null, TimeSpan.Zero, TimeSpan.FromMinutes(10));
 
+            await Install();
+
             await client.LoginAsync(TokenType.Bot, Configuration.Load().Token);
             await client.StartAsync();
 
-            var map = new DependencyMap();
-            map.Add(client);
-             
-            handler = new CommandHandler();
-            await handler.Install(map);
-            
             await Task.Delay(-1);
         }
+
+        private IServiceProvider ConfigureServices()
+        {
+            var services = new ServiceCollection()
+                .AddSingleton(client)
+                .AddSingleton<AudioService>()
+                .AddSingleton(new CommandService(new CommandServiceConfig { CaseSensitiveCommands = false }));
+
+            var provider = new DefaultServiceProviderFactory().CreateServiceProvider(services);
+            provider.GetService<AudioService>();
+
+            return provider;
+        }
+
+        private async Task UserLeft(SocketGuildUser user)
+        {
+            var guild = client.GetGuild(301032919256793089);
+            var channel = guild.GetTextChannel(301094488955420673);
+            var test = user as IGuildUser;
+
+            await channel.SendMessageAsync($":arrow_backward: <@{user.Id}>");
+        }
+
+        public async Task HandleCommand(SocketMessage parameterMessage)
+        {
+            var message = parameterMessage as SocketUserMessage;
+
+            if (message == null) return;
+
+            int argPos = 0;
+
+            if (!(message.HasMentionPrefix(client.CurrentUser, ref argPos) || message.HasStringPrefix(Configuration.Load().Prefix, ref argPos))) return;
+
+            var context = new SocketCommandContext(client, message);
+
+            var result = await _service.ExecuteAsync(context, argPos);
+            /* if(!message.Author.IsBot && !message.HasMentionPrefix(client.CurrentUser, ref argPos) && result.IsSuccess)
+                 await message.DeleteAsync();
+                */
+
+            if (!result.IsSuccess && message.HasStringPrefix(Configuration.Load().Prefix, ref argPos))
+                await message.Channel.SendMessageAsync($"**Error:** {result.ErrorReason}"); 
+
+        }
+
+        private async Task UserJoined(SocketGuildUser user)
+        {
+            var guild = client.GetGuild(301032919256793089);
+            var channel = guild.GetTextChannel(301094488955420673);
+            var test = user as IGuildUser;
+
+            var author = new EmbedAuthorBuilder();
+            author.IconUrl = user.GetAvatarUrl();
+            author.Name = user.Username;
+
+            var embed = new EmbedBuilder()
+            {
+                Author = author,
+                Description = $"Discriminator: {user.Discriminator}\nCreated at: {user.CreatedAt}\nJoined at: {user.JoinedAt}"
+            };
+            await channel.SendMessageAsync($":arrow_forward: <@{user.Id}>", false, embed);
+
+            if(test.CreatedAt.Day == test.JoinedAt.Value.Day && test.CreatedAt.Year == test.JoinedAt.Value.Year)
+            {
+                await channel.SendMessageAsync("<@&301076183921983490> This user was created today.");
+            }
+        }   
 
         private Task Log(LogMessage msg)
         {

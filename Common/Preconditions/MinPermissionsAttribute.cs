@@ -1,4 +1,12 @@
-﻿using Discord.Commands;
+﻿/*
+MIT License
+Copyright (c) JayXKanz666 2017
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
+using Discord.Commands;
 using Discord.WebSocket;
 using System;
 using System.Linq;
@@ -20,7 +28,7 @@ namespace JXbot.Common.Preconditions
             Level = level;
         }
 
-        public override Task<PreconditionResult> CheckPermissions(ICommandContext context, CommandInfo command, IDependencyMap map)
+        public override Task<PreconditionResult> CheckPermissions(ICommandContext context, CommandInfo command, IServiceProvider provider)
         {
             var access = GetPermission(context);            // Get the acccesslevel for this context
 
@@ -51,6 +59,9 @@ namespace JXbot.Common.Preconditions
                     user.GuildPermissions.BanMembers ||
                     user.GuildPermissions.KickMembers)
                     return AccessLevel.ServerMod;
+
+                if (user.Roles.Any(role => role.Name == "musicfag"))
+                    return AccessLevel.ServerMusic;
             }
 
             return AccessLevel.User;                             // If nothing else, return a default permission.

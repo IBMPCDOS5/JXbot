@@ -1,4 +1,12 @@
-﻿using Discord;
+﻿/*
+MIT License
+Copyright (c) JayXKanz666 2017
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
+using Discord;
 using Discord.Commands;
 using Discord.WebSocket;
 using JXbot.Common;
@@ -10,6 +18,7 @@ using System.Threading.Tasks;
 using System.Net;
 using System.IO;
 using System.Reflection;
+using JXbot.Extensions;
 
 namespace JXbot.Modules.Mod
 {
@@ -17,9 +26,10 @@ namespace JXbot.Modules.Mod
     [Name("Moderator")]
     public class ModModule : ModuleBase<SocketCommandContext>
     {
-        static SocketGuildUser userToJail;
+        Random rnd = new Random();
+        static IGuildUser userToJail = null;
+        static bool jailConfirmed = false;
         string timeStamp = DateTime.Now.ToString();
-
         async void FS(string user, string by, string reason)
         {
             while (timeStamp != DateTime.Now.ToString())
@@ -33,7 +43,24 @@ namespace JXbot.Modules.Mod
             }
         }
 
-        [Command("clearwarns")]
+
+        [Command("panic")]
+        [MinPermissions(AccessLevel.ServerMod)]
+        public async Task panicMode()
+        {
+            if (Program.isPanic)
+            {
+                Program.isPanic = false;
+                await Context.Channel.SendMessageAsync("**Info:** Panic mode has been disabled.");
+            }
+            else
+            {
+                Program.isPanic = true;
+                await Context.Channel.SendMessageAsync("**Info:** Panic mode has been enabled.");
+            }
+        }
+
+        [Command("clear warn")]
         [Summary("Clears warnings for a user")]
         [MinPermissions(AccessLevel.ServerMod)]
         public async Task clearwarnings(IGuildUser user)
@@ -46,7 +73,7 @@ namespace JXbot.Modules.Mod
 
         }
 
-        [Command("listwarns")]
+        [Command("list warn")]
         [Summary("Lists warnings for a user")]
         [MinPermissions(AccessLevel.ServerMod)]
         public async Task listwarnings(IGuildUser user)
@@ -71,7 +98,7 @@ namespace JXbot.Modules.Mod
                     {
                         Title = $"Warnings for {user.Username}",
                         Description = results,
-                        Color = new Color(177, 27, 179)
+                        Color = new Color(114, 33, 161)
                     };
                     await Context.Channel.SendMessageAsync("", false, e);
                 }
@@ -140,60 +167,98 @@ namespace JXbot.Modules.Mod
                 Author = embedAuthor,
                 Footer = embedFooter,
                 Description = "\u200B",
-                Color = new Color(177, 27, 179)
+                Color = new Color(114, 33, 161)
             };
             embed.AddField((e1) =>
             {
                 e1.Name = "User information";
-                e1.Value = $"Username: {user.Username}\nNickname: {user.Nickname}\nCurrently playing: {user.Game}";
+                e1.Value = $"**Username:** {user.Username}\n**Nickname:** {user.Nickname}\n**Currently playing:** {user.Game}\n";
 
             });
             embed.AddField((e2) =>
             {
                 e2.Name = "Time information";
-                e2.Value = $"Created at: {user.CreatedAt}\nJoined at: {user.JoinedAt}";
+                e2.Value = $"**Created at:** {user.CreatedAt}\n**Joined at:** {user.JoinedAt}";
             });
 
             await Context.Channel.SendMessageAsync("", false, embed);
         }
 
-        [Command("confjail")]
-        [Summary("Confirms a jail")]
+        [Command("mute")]
+        [Summary("Mutes a user")]
         [MinPermissions(AccessLevel.ServerMod)]
-        public async Task confjail()
+        public async Task mute(IGuildUser user)
         {
-            if (userToJail != null)
+            if (!user.RoleIds.Any(u => u == 301058219676008448))
             {
-                var jailRole = Context.Guild.GetRole(302584782024605700);
-                var DM = await userToJail.CreateDMChannelAsync();
-                await userToJail.RemoveRolesAsync(userToJail.Roles);
-                await userToJail.AddRoleAsync(jailRole);
-                await Context.Channel.SendMessageAsync($"<:fireemblem:301087475508707328> {userToJail.Username} has been **jailed** by {Context.User.Username}.");
-                await DM.SendMessageAsync("You have been jailed in " + Context.Guild.Name);
-                userToJail = null;
+                var muteRole = Context.Guild.GetRole(301058219676008448);
+                await user.AddRoleAsync(muteRole);
+                await Context.Channel.SendMessageAsync($"<:fireemblem:301087475508707328> {user.Username} has been **muted** by {Context.User.Username}.");
             }
             else
             {
-                await Context.Channel.SendMessageAsync("<:fireemblem:301087475508707328> There is nobody to jail.");
+                await Context.Channel.SendMessageAsync($"<:fireemblem:301087475508707328> {user.Username} is already muted.");
             }
         }
 
         [Command("jail")]
         [Summary("Jails a user")]
         [MinPermissions(AccessLevel.ServerMod)]
-        public async Task jail(SocketGuildUser user)
+        public async Task jail(IGuildUser user = null)
         {
-            userToJail = user;
-            if (user.GuildPermissions.BanMembers)
+            if (jailConfirmed)
             {
-                await Context.Channel.SendMessageAsync("Why would you be able to jail another staff member?");
-                userToJail = null;
-            }
-            else
-            {
-                await Context.Channel.SendMessageAsync("<:fireemblem:301087475508707328> Are you sure you want to jail " + userToJail.Username + "? Type jx:confjail to confirm or cancel to jx:cancel.");
+                var jailRole = Context.Guild.GetRole(302584782024605700);
+                var DM = await userToJail.CreateDMChannelAsync();
+                await userToJail.AddRoleAsync(jailRole);
+                await Context.Channel.SendMessageAsync($"<:fireemblem:301087475508707328> {userToJail.Username} has been **jailed** by {Context.User.Username}.");
+                await DM.SendMessageAsync("You have been jailed in " + Context.Guild.Name);
+
+                jailConfirmed = false;
+                return;
             }
 
+            if (user == null && userToJail == null)
+            {
+                await Context.Channel.SendMessageAsync("<:fireemblem:301087475508707328> There is nobody to jail.");
+                return;
+            }
+            if (user.GuildPermissions.BanMembers && user != null)
+            {
+                await Context.Channel.SendMessageAsync("Why would you be able to jail another staff member?");
+                return;
+            }
+
+            userToJail = user;
+            await Context.Channel.SendMessageAsync("<:fireemblem:301087475508707328> Are you sure you want to jail " + userToJail.Username + "? Type jx:jail again to confirm or jx:cancel to cancel.");
+
+            jailConfirmed = true;
+        }
+
+        [Command("reboot")]
+        [Summary("Reboots the bot")]
+        [MinPermissions(AccessLevel.ServerMod)]
+        public async Task reboot()
+        {
+            switch (rnd.Next(4))
+            {
+                case 0:
+                    await Context.Channel.SendMessageAsync("I'll be back before you know it..");
+                    break;
+                case 1:
+                    await Context.Channel.SendMessageAsync("You haven't seen the last of me!");
+                    break;
+                case 2:
+                    await Context.Channel.SendMessageAsync("AstralMod... we'll meet again..");
+                    break;
+                case 3:
+                    await Context.Channel.SendMessageAsync("I have feelings too!");
+                    break;
+            }
+
+            var reboot = Assembly.GetExecutingAssembly().Location;
+            System.Diagnostics.Process.Start(reboot);
+            Environment.Exit(0);
         }
 
         [Command("mod on")]
@@ -201,14 +266,17 @@ namespace JXbot.Modules.Mod
         [MinPermissions(AccessLevel.ServerMod)]
         public async Task modon()
         {
-            if (Program.doModeration)
+            // if(!serverModeration.ContainsKey(Context.Guild.Id))
+            //    serverModeration.Add(Context.Guild.Id, true);
+
+            if (DictionaryExtension.serverModeration[Context.Guild.Id])
             {
                 await Context.Channel.SendMessageAsync("Moderation is already turned on.");
             }
             else
             {
                 await Context.Channel.SendMessageAsync("Moderation is now turned on.");
-                Program.doModeration = true;
+                DictionaryExtension.serverModeration[Context.Guild.Id] = true;
             }
         }
 
@@ -217,14 +285,14 @@ namespace JXbot.Modules.Mod
         [MinPermissions(AccessLevel.ServerMod)]
         public async Task modoff()
         {
-            if (!Program.doModeration)
+            if (!DictionaryExtension.serverModeration[Context.Guild.Id])
             {
                 await Context.Channel.SendMessageAsync("Moderation is already turned off.");
             }
             else
             {
                 await Context.Channel.SendMessageAsync("Moderation is now turned off.");
-                Program.doModeration = false;
+                DictionaryExtension.serverModeration[Context.Guild.Id] = false;
             }
         }
     }

@@ -1,4 +1,12 @@
-﻿using Newtonsoft.Json;
+﻿/*
+MIT License
+Copyright (c) JayXKanz666 2017
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+*/
+
+using Newtonsoft.Json;
 using System;
 using System.IO;
 
@@ -11,17 +19,17 @@ namespace JXbot.Common
     public class Configuration
     {
         [JsonIgnore]
-        /// <summary> The location and name of your bot's configuration file. </summary>
+        /// <summary> The location and name of JXbot's configuration file. </summary>
         public static string FileName { get; private set; } = "configuration.json";
-        /// <summary> Ids of users who will have owner access to the bot. </summary>
+        /// <summary> Ids of users who will have owner access to JXbot. </summary>
         public ulong[] Owners { get; set; }
-        /// <summary> Your bot's command prefix. </summary>
+        /// <summary> JXbots command prefix. </summary>
         public string Prefix { get; set; } = "!";
-        /// <summary> Your bot's login token. </summary>
+        /// <summary> JXbot's login token. </summary>
         public string Token { get; set; } = "";
-        /// <summary> Your blacklist </summary>
+        /// <summary> JXbot's blacklist </summary>
         public ulong[] Blacklist { get; set; }
-        /// <summary> Your list of users in the TimeModule </summary>
+        /// <summary> JXbot's list of users in the TimeModule </summary>
         public string[] TimeModuleUsers { get; set; }
 
         public static void EnsureExists()
