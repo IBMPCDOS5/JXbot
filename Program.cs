@@ -464,6 +464,10 @@ namespace JXbot
                 {
                     await context.Channel.SendMessageAsync("<@" + context.User.Id + "> WHAT DID YOU SAY? YOU MENTIONED THE WORST BOT!");
                 }
+                else if (message.HasMentionPrefix(client.CurrentUser, ref argPos) && message.Content.Contains("> astralmod")
+                {
+                    await context.Channel.SendMessageAsync("<@" + context.User.Id + "> Anything is better than AstralMod");
+                }
             };
             client.MessageDeleted += async (e, msg) =>
             {
