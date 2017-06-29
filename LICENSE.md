@@ -3,7 +3,7 @@ MIT License
 Copyright (c) 2017 
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
-of this JXbot and associated documentation files ("JXbot"), to deal
+of JXbot and associated documentation files ("JXbot"), to deal
 in JXbot without restriction, including without limitation the rights
 to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 copies of JXbot, and to permit persons to whom JXbot is
